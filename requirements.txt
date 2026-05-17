@@ -4,5 +4,8 @@ infinity-emb[all]==0.0.76
 # BetterTransformer is deprecated and requires transformers<4.49.
 optimum==1.26.1
 transformers<4.49
+# Older datasets releases still import pyarrow.PyExtensionType, which was
+# removed in newer pyarrow releases.
+pyarrow<21
 einops # deployment of custom code with nomic
 git+https://github.com/pytorch-labs/float8_experimental.git

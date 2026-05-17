@@ -26,6 +26,19 @@ RUN pip install torch==2.5.1+cu124 --index-url https://download.pytorch.org/whl/
 # Add src files
 ADD src .
 
+# Fail the image build early if the Python dependency set cannot import the
+# worker stack. This catches dependency drift before RunPod deploys a test pod.
+RUN python - <<'PY'
+from python_compat import ensure_int_max_str_digits_api
+
+ensure_int_max_str_digits_api()
+import torch
+import transformers
+from infinity_emb.engine import AsyncEngineArray, EngineArgs
+
+print("worker import smoke test ok", torch.__version__, transformers.__version__)
+PY
+
 # Add test input
 COPY test_input.json /test_input.json
 
