@@ -1,6 +1,6 @@
 from http import HTTPStatus
-from typing import Annotated, Any, Dict, List, Literal, Optional, Union
-from typing import Any, Dict, Iterable, List, Optional, Union
+from dataclasses import asdict, is_dataclass
+from typing import Annotated, Any, Dict, Iterable, List, Literal, Optional, Union
 from uuid import uuid4
 import time
 import numpy as np
@@ -140,8 +140,81 @@ def list_embeddings_to_response(
     )
 
 
+def _json_safe_scalar(value: Any) -> Any:
+    if isinstance(value, np.generic):
+        return value.item()
+    if hasattr(value, "item") and callable(value.item):
+        try:
+            return value.item()
+        except Exception:
+            pass
+    return value
+
+
+def _rerank_item_to_mapping(item: Any) -> Dict[str, Any]:
+    if isinstance(item, dict):
+        return item
+    if is_dataclass(item):
+        return asdict(item)
+    if hasattr(item, "model_dump") and callable(item.model_dump):
+        return item.model_dump()
+    if hasattr(item, "dict") and callable(item.dict):
+        return item.dict()
+    return {
+        name: getattr(item, name)
+        for name in (
+            "index",
+            "score",
+            "relevance_score",
+            "document",
+            "doc",
+            "text",
+        )
+        if hasattr(item, name)
+    }
+
+
+def _rerank_score(item: Any) -> float:
+    if isinstance(item, (float, int, np.generic)):
+        return float(_json_safe_scalar(item))
+
+    mapping = _rerank_item_to_mapping(item)
+    for key in ("relevance_score", "score", "similarity", "logit"):
+        if key in mapping and mapping[key] is not None:
+            return float(_json_safe_scalar(mapping[key]))
+
+    raise TypeError(f"Unsupported rerank score item: {type(item).__name__}")
+
+
+def _rerank_index(item: Any, fallback_index: int) -> int:
+    mapping = _rerank_item_to_mapping(item)
+    value = mapping.get("index", fallback_index)
+    return int(_json_safe_scalar(value))
+
+
+def _rerank_document(
+    item: Any,
+    documents: Optional[List[str]],
+    fallback_index: int,
+) -> Optional[str]:
+    mapping = _rerank_item_to_mapping(item)
+    for key in ("document", "doc", "text"):
+        if key in mapping and mapping[key] is not None:
+            return str(mapping[key])
+
+    if documents is None:
+        return None
+
+    item_index = _rerank_index(item, fallback_index)
+    if 0 <= item_index < len(documents):
+        return documents[item_index]
+    if 0 <= fallback_index < len(documents):
+        return documents[fallback_index]
+    return None
+
+
 def to_rerank_response(
-    scores: List[float],
+    scores: List[Any],
     model=str,
     usage=int,
     documents: Optional[List[str]] = None,
@@ -150,7 +223,10 @@ def to_rerank_response(
         return dict(
             model=model,
             results=[
-                dict(relevance_score=score, index=count)
+                dict(
+                    relevance_score=_rerank_score(score),
+                    index=_rerank_index(score, count),
+                )
                 for count, score in enumerate(scores)
             ],
             usage=dict(prompt_tokens=usage, total_tokens=usage),
@@ -159,8 +235,12 @@ def to_rerank_response(
         return dict(
             model=model,
             results=[
-                dict(relevance_score=score, index=count, document=doc)
-                for count, (score, doc) in enumerate(zip(scores, documents))
+                dict(
+                    relevance_score=_rerank_score(score),
+                    index=_rerank_index(score, count),
+                    document=_rerank_document(score, documents, count),
+                )
+                for count, score in enumerate(scores)
             ],
             usage=dict(prompt_tokens=usage, total_tokens=usage),
         )

@@ -46,8 +46,10 @@ async def async_generator_handler(job: dict[str, Any]):
         if job_input.get("query"):
             call_fn, kwargs = embedding_service.infinity_rerank, {
                 "query": job_input.get("query"),
-                "docs": job_input.get("docs"),
-                "return_docs": job_input.get("return_docs"),
+                "docs": job_input.get("docs", job_input.get("documents")),
+                "return_docs": job_input.get(
+                    "return_docs", job_input.get("return_documents")
+                ),
                 "model_name": job_input.get("model"),
             }
         elif job_input.get("input"):

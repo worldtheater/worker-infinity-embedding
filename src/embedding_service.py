@@ -77,7 +77,7 @@ class EmbeddingService:
             )
 
     async def infinity_rerank(
-        self, query: str, docs: str, return_docs: str, model_name: str
+        self, query: str, docs: list[str], return_docs: bool, model_name: str
     ):
         """Rerank the documents based on the query"""
         if not self.is_running:
