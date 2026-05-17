@@ -1,4 +1,8 @@
 runpod~=1.7.0
 infinity-emb[all]==0.0.76
+# infinity-emb 0.0.76 imports optimum.bettertransformer on the torch backend.
+# BetterTransformer is deprecated and requires transformers<4.49.
+optimum==1.26.1
+transformers<4.49
 einops # deployment of custom code with nomic
 git+https://github.com/pytorch-labs/float8_experimental.git
