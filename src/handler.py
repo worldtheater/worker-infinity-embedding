@@ -1,3 +1,7 @@
+from python_compat import ensure_int_max_str_digits_api
+
+ensure_int_max_str_digits_api()
+
 import runpod
 from utils import create_error_response
 from typing import Any

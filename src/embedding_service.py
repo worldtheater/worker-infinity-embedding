@@ -1,3 +1,7 @@
+from python_compat import ensure_int_max_str_digits_api
+
+ensure_int_max_str_digits_api()
+
 from config import EmbeddingServiceConfig
 from infinity_emb.engine import AsyncEngineArray, EngineArgs
 from utils import (
